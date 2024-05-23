@@ -8,12 +8,18 @@ const passport = require('passport');
 const mongoose = require('mongoose');
 const {ObjectId} = mongoose.Types; 
 const fs = require('fs');
-
-
+const dotenv = require('dotenv');
+dotenv.config();
 const multer  = require('multer')
+const bodyParser = require('body-parser');
+
+router.use(bodyParser.json());  
+router.use(express.urlencoded({ extended: true }));
+
+
 
 const corsOptions = {
-  origin: 'http://localhost:3000'
+  origin: process.env.FRONTEND_URL
 };
 
 
@@ -29,7 +35,6 @@ const storage = multer.diskStorage({
 });
 const storage2 = multer.diskStorage({
   destination: function (req, file, cb) {
-    // cb(null, './postimages/'); 
     cb(null, '../frontend/src/images/'); 
   },
   filename: function (req, file, cb) {
@@ -39,7 +44,6 @@ const storage2 = multer.diskStorage({
   }
 });
   
-
 const upload = multer({ storage });
 const upload2 = multer({ storage: storage2 }); 
 
@@ -53,7 +57,8 @@ router.post('/register', cors(corsOptions), upload.single('pic'), async (req, re
     const existingUser = await User.findOne({ username: username });
 
     if (existingUser) {
-      return res.status(400).json({ message: 'User with this username already exists.' });
+      // return res.status(400).json({ message: 'User with this username already exists.' });
+      return res.status(400).json({ message: '0' });
     }
     
 
@@ -76,6 +81,7 @@ router.post('/register', cors(corsOptions), upload.single('pic'), async (req, re
     res.status(500).json({ message: 'Internal server error. Please try again later.' });
   }
 });
+
 router.post('/send', cors(corsOptions), upload2.single('pic'), async (req, res) => {
   try {
     console.log('Received a POST request to /send'); 
@@ -103,6 +109,7 @@ router.post('/send', cors(corsOptions), upload2.single('pic'), async (req, res) 
     res.status(500).json({ message: 'Internal server error. Please try again later.' });
   }
 });
+
 router.get('/homePage', cors(corsOptions), async (req, res) => {
   try {
 
@@ -113,6 +120,7 @@ router.get('/homePage', cors(corsOptions), async (req, res) => {
     res.status(500).json({ message: 'Internal server error. Please try again later.' });
   }
 });
+
 router.get('/userDetails', cors(corsOptions), async (req, res) => {
   try {
 
@@ -123,10 +131,12 @@ router.get('/userDetails', cors(corsOptions), async (req, res) => {
     res.status(500).json({ message: 'Internal server error. Please try again later.' });
   }
 });
-router.post("/login", cors(corsOptions) , (req, res, next) => {
+
+router.post("/login", cors(corsOptions), (req, res, next) => {
   passport.authenticate('local', (err, user, info) => {
     if (err) {
-      return res.status(500).json({ message: 'Internal server error. Please try again later.' });
+      console.error('Error during authentication:', err);
+      return next(err); // pass the error to the error-handling middleware
     }
     
     if (!user) {
@@ -135,14 +145,15 @@ router.post("/login", cors(corsOptions) , (req, res, next) => {
 
     req.logIn(user, (err) => {
       if (err) {
-        return res.status(500).json({ message: 'Internal server error. Please try again later.' });
+        console.error('Error during login:', err);
+        return next(err); // pass the error to the error-handling middleware
       }
 
-      console.log('Eureka!!');
       return res.status(200).json({ message: 'Login successful.', user });
     });
   })(req, res, next);
 });
+
 router.post('/updateLikes', cors(corsOptions), async (req, res) => {
   try {
     const { sender, profilePic } = req.body;
@@ -159,6 +170,7 @@ router.post('/updateLikes', cors(corsOptions), async (req, res) => {
     res.status(500).json({ message: 'Internal server error. Please try again later.' });
   }
 });
+
 router.post('/updateLikesn', cors(corsOptions), async (req, res) => {
   try {
     const { sender, profilePic } = req.body;
@@ -175,65 +187,29 @@ router.post('/updateLikesn', cors(corsOptions), async (req, res) => {
     res.status(500).json({ message: 'Internal server error. Please try again later.' });
   }
 });
+
 router.post("/review", cors(corsOptions) , async(req, res) => {
-
-
   const { text,owner,id } = req.body;
-
   const post=await Post.findOne({id:id});
   const revieww=await Review.create({text,owner});
-
   post.review.push(revieww);
-
   await post.save();
-
-  
-
-
 });
 
-
-// router.post("/search", cors(corsOptions) , async(req, res) => {
-
-
-//   const { sender } = req.body;
-//   const user=await User.findOne({username:sender}); 
-//   if(user.post){
-//     const responses = await Promise.all(user.post.map(async(item,index)=>{
-
-//       const rev=await Post.findById(item.toString());
-      
-//       return rev
-  
-//     })) 
-    
-//     const jsonData = JSON.stringify(responses);
-//     res.status(201).send(jsonData);
-    
-//   }
-// });
-
-
 router.post("/postShow", cors(corsOptions) , async(req, res) => {
-
-
   const { sender } = req.body;
   const user=await User.findOne({username:sender}); 
   if(user.post){
     const responses = await Promise.all(user.post.map(async(item,index)=>{
-
       const rev=await Post.findById(item.toString());
-      
       return rev
   
     })) 
-    
     const jsonData = JSON.stringify(responses);
     res.status(201).send(jsonData);
-    
   }
- 
 });
+
 router.post("/reviewShow", cors(corsOptions) , async(req, res) => {
 
 
@@ -245,7 +221,7 @@ router.post("/reviewShow", cors(corsOptions) , async(req, res) => {
       const rev=await Review.findById(item.toString());
       
       return rev
-  
+   
     }))
     
     const jsonData = JSON.stringify(responses);
@@ -254,6 +230,8 @@ router.post("/reviewShow", cors(corsOptions) , async(req, res) => {
   }
  
 });
+
+
 router.post("/followShow", cors(corsOptions) , async(req, res) => {
 
 
